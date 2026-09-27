@@ -46,9 +46,12 @@ const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML,
 const lenient = new Agent({ connect: { rejectUnauthorized: false } });
 
 const LOOKS_LIKE_RECRUITMENT =
-  /recruit|advt|advertisement|notification|notice|vacanc|apply|application|examination|exam\b|bharti|bharati|भर्ती|भरती|विज्ञापन|नियुक्ति|নিয়োগ|corrigendum|extension|extended|addendum|engagement|walk.?in|gds|gramin dak/i;
+  /recruit|advt|advertisement|notification|notice|vacanc|apply|application|examination|exam\b|bharti|bharati|भर्ती|भरती|विज्ञापन|नियुक्ति|নিয়োগ|corrigendum|extension|extended|addendum|engagement|walk.?in|gds|gramin dak|भरती|जाहिरात|पदभरती/i;
 const NOT_RECRUITMENT =
   /result|answer.?key|admit|interview (schedule|date|letter)|cut.?off|\bmarks?\b|mark.?list|appointment.?letter|allotment|document.?verification|\bdv\b|syllabus|question.?paper|time.?table|press|tender|\brti\b|photo|gallery|caveat|merit.?list|selection.?list|rejected|minutes|holiday|citizen|faq|login|sitemap|annual.?report|budget|audit|quotation|auction|e-?bid|expression of interest|\beoi\b|hoarding|advertiser|disaster|\bplan\b|question.?bank|nyas|current page|marksheet|to be furnished|calend[ae]r|exam schedule|instructions|guidelines|\brules\b|notification of result|list of candidates|shortlisted|provisional(ly)? selected|scrutiny|objection/i;
+// Topics official sites post that are never job openings (seen on real runs).
+const NOT_JOB_TOPIC =
+  /prospectus|\bnirf\b|handbook|\bhistory\b|enrol+ment form|bus pass|lok adalat|internship|committee|transfer(s)? and posting|posting of|attendance|\bstudents?\b|semester|caution notice|model answer|stall form|brochure|\(closed\)|\bclosed\b|draft .*regulations|comments? (&|and) suggestions|^page \d+$|reject|admission|scholarship|\bfaq|induction training|newly recruited|benefits of working/i;
 const MENU_LABEL =
   /^(home|about.*|contact.*|calendar|active examinations?|forthcoming examinations?|read more|more|view all.*|click here|english|hindi|हिन्दी|vacancies|recruitment|careers?|current openings|how do you apply\??|faqs?|notices?|notifications?|what'?s new|archives?|vacancies notices|important links)$/i;
 const STRONG_RECRUITMENT =
@@ -150,12 +153,14 @@ const onlyOldYears = (label) => {
 
 function isNotice(a) {
   const both = `${a.label} ${a.url}`;
-  if (!official(a.url) || NOT_RECRUITMENT.test(a.label) || MENU_LABEL.test(a.label.trim()) || onlyOldYears(a.label)) return false;
+  const label = a.label.trim();
+  if (!official(a.url) || label.length < 12 || NOT_RECRUITMENT.test(label) || NOT_JOB_TOPIC.test(label)) return false;
+  if (MENU_LABEL.test(label) || onlyOldYears(label)) return false;
   // On standard district/department recruitment pages, only the notice table counts.
   if (a.templatePage && !a.row) return false;
   const isPdf = /\.pdf($|\?)/i.test(a.url);
   return (
-    (isPdf && (LOOKS_LIKE_RECRUITMENT.test(both) || a.recruitmentPage)) ||
+    (isPdf && (LOOKS_LIKE_RECRUITMENT.test(both) || a.templatePage)) ||
     (/\d/.test(a.label) && LOOKS_LIKE_RECRUITMENT.test(both)) ||
     STRONG_RECRUITMENT.test(a.label)
   );
