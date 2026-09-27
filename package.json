@@ -1,0 +1,13 @@
+{
+  "name": "gk-master-job-notices",
+  "private": true,
+  "type": "module",
+  "description": "Collects public recruitment notices from official Indian government websites.",
+  "scripts": {
+    "collect": "node collect.mjs"
+  },
+  "dependencies": {
+    "unpdf": "^1.8.1",
+    "undici": "^8.11.2"
+  }
+}
