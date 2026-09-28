@@ -62,8 +62,10 @@ const CAREER_LINK = /recruit|career|vacanc|job|advertis|bharti|भर्ती|n
 fs.mkdirSync(NOTICES, { recursive: true });
 fs.mkdirSync(STATE, { recursive: true });
 const readJson = (p, fallback) => (fs.existsSync(p) ? JSON.parse(fs.readFileSync(p, "utf8")) : fallback);
-const seen = new Set(readJson(file(STATE, "seen.json"), []));
-const firstRun = seen.size === 0;
+// Links already read. A link skipped because of the per-run limits is NOT
+// added, so it is read on a later run — jobs that were already open when a
+// source was added are caught up over the next runs, newest first.
+const seen = new Set(readJson(file(STATE, "read.json"), []));
 const index = readJson(file(NOTICES, "index.json"), { notices: [] });
 const probes = readJson(file(STATE, "probes.json"), {});
 const runState = readJson(file(STATE, "run.json"), { run: 0 });
@@ -302,10 +304,8 @@ await pool(watch, async (source) => {
   let perPage = 0;
   for (const link of candidates) {
     if (seen.has(link.url)) continue;
+    if (perPage >= MAX_PER_PAGE || saved >= MAX_NOTICES_PER_RUN || timeLeft() < 90_000) break;
     seen.add(link.url);
-    // First run: only the newest items on each page are read; the rest is history.
-    if (firstRun && perPage >= 2) continue;
-    if (perPage >= MAX_PER_PAGE || saved >= MAX_NOTICES_PER_RUN || timeLeft() < 90_000) continue;
     perPage++;
     try {
       const notice = await readNotice(link);
@@ -339,7 +339,7 @@ index.updatedAt = new Date().toISOString();
 fs.writeFileSync(file(NOTICES, "index.json"), JSON.stringify(index));
 // The server checks links against the same official list.
 fs.writeFileSync(file(NOTICES, "domains.json"), JSON.stringify({ updatedAt: registry.updatedAt, hosts: registry.orgs.map((o) => o.host) }));
-fs.writeFileSync(file(STATE, "seen.json"), JSON.stringify([...seen].slice(-60_000)));
+fs.writeFileSync(file(STATE, "read.json"), JSON.stringify([...seen].slice(-60_000)));
 fs.writeFileSync(file(STATE, "probes.json"), JSON.stringify(probes));
 fs.writeFileSync(file(STATE, "run.json"), JSON.stringify(runState));
 // A commit every run keeps GitHub's scheduled workflow active.
